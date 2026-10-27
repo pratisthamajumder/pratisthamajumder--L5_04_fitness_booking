@@ -16,16 +16,21 @@ rosters = {}
 def book_class(member_id, class_name, attendance_log=None):
     """Book a member into a class if there is a free seat.
 
-    Returns True if the booking succeeded, False if the class is full.
+    Returns True if the booking succeeded, False otherwise.
     """
     if attendance_log is None:
         attendance_log = []
-    if class_name not in rosters:
-        rosters[class_name] = []
-    if len(rosters[class_name]) > class_capacity.get(class_name, 0):
+    if class_name not in class_capacity:
+        print("No such class:", class_name)
+        return False
+    roster = rosters.setdefault(class_name, [])
+    if member_id in roster:
+        print("Already booked:", member_id, "in", class_name)
+        return False
+    if len(roster) >= class_capacity[class_name]:
         print("Class full:", class_name)
         return False
-    rosters[class_name].append(member_id)
+    roster.append(member_id)
     attendance_log.append(f"{member_id} -> {class_name}")
     return True
 
@@ -39,7 +44,12 @@ def cancel_booking(member_id, class_name):
 
 
 def set_capacity(class_name, seats):
-    """Set the number of seats available in a class."""
+    """Set the number of seats available in a class.
+
+    Raises ValueError if `seats` is negative.
+    """
+    if seats < 0:
+        raise ValueError(f"Capacity cannot be negative: {seats}")
     class_capacity[class_name] = seats
 
 
@@ -67,19 +77,38 @@ def show_rosters():
         print(class_name, ":", ", ".join(str(m) for m in members))
 
 
+def read_guest_count(prompt, default=1):
+    """Ask for a whole number of guests; fall back to `default` if invalid."""
+    answer = input(prompt).strip()
+    if not answer:
+        return default
+    try:
+        count = int(answer)
+    except ValueError:
+        print("Not a number, using", default)
+        return default
+    if count < 0:
+        print("Guest count cannot be negative, using", default)
+        return default
+    return count
+
+
 def main():
     """Run the booking demo."""
     book_class("M1", "Yoga")
     book_class("M2", "Yoga")
     book_class("M3", "Yoga")
     book_class("M4", "Yoga")
-    book_class(55, "HIIT")
+    book_class("M6", "HIIT")
     book_class("M5", "Pilates")
-    set_capacity("Spin", -2)
+    try:
+        set_capacity("Spin", -2)
+    except ValueError as err:
+        print(err)
     add_members("Spin", 3)
     cancel_booking("M9", "Boxing")
-    n = input("How many walk-in guests for HIIT? (Enter for 1): ") or "1"
-    add_members("HIIT", int(n))
+    n = read_guest_count("How many walk-in guests for HIIT? (Enter for 1): ")
+    add_members("HIIT", n)
     clear_old_exports()
     export_roster()
     show_rosters()
